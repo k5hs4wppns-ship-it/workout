@@ -1,0 +1,1235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>HIT</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --bg:#000000; --bg2:#1c1c1e; --bg3:#2c2c2e; --bg4:#3a3a3c;
+  --text:#ffffff; --text3:#ebebf599; --text4:#ebebf560;
+  --accent:#0a84ff; --red:#ff453a; --green:#30d158; --orange:#ff9f0a;
+  --sep:rgba(255,255,255,0.08); --radius:13px; --radius-lg:20px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,'Helvetica Neue',sans-serif;min-height:100vh;padding-bottom:120px;-webkit-font-smoothing:antialiased;}
+.screen{display:none;animation:fadeIn 0.2s ease;} .screen.active{display:block;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+.sync-dot{position:fixed;top:14px;right:16px;font-size:0.65rem;font-weight:600;z-index:999;padding:3px 8px;border-radius:20px;background:var(--bg3);color:var(--text4);letter-spacing:0.5px;}
+.sync-dot.syncing{color:var(--orange);} .sync-dot.synced{color:var(--green);} .sync-dot.error{color:var(--red);}
+
+.loading-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;z-index:9999;}
+.loading-screen h1{font-size:2rem;font-weight:700;color:var(--accent);}
+.loading-screen p{font-size:0.85rem;color:var(--text4);}
+
+.page-header{padding:56px 20px 8px;position:sticky;top:0;background:rgba(0,0,0,0.85);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);z-index:50;border-bottom:1px solid var(--sep);}
+.page-header h1{font-size:2rem;font-weight:700;letter-spacing:-0.5px;}
+.page-header p{font-size:0.8rem;color:var(--text3);margin-top:2px;}
+.section-label{font-size:0.75rem;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.6px;padding:20px 20px 8px;}
+
+.group{background:var(--bg2);border-radius:var(--radius-lg);margin:0 16px 8px;overflow:hidden;}
+.group-row{display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid var(--sep);min-height:48px;cursor:pointer;}
+.group-row:last-child{border-bottom:none;} .group-row:active{background:var(--bg3);}
+.row-label{font-size:0.95rem;color:var(--text);flex:1;}
+.row-value{font-size:0.95rem;color:var(--text3);margin-right:6px;}
+.row-chevron{color:var(--text4);font-size:0.8rem;}
+.row-icon{width:30px;height:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:1rem;margin-right:12px;flex-shrink:0;}
+
+/* HOME */
+.home-body{padding-bottom:20px;}
+.hero-card{margin:16px 16px 8px;background:linear-gradient(145deg,#1a1a2e,#16213e);border:1px solid rgba(10,132,255,0.2);border-radius:var(--radius-lg);padding:24px;position:relative;overflow:hidden;}
+.hero-card::before{content:'';position:absolute;top:-40px;right:-40px;width:140px;height:140px;background:radial-gradient(circle,rgba(10,132,255,0.15),transparent 70%);border-radius:50%;}
+.next-label{font-size:0.7rem;font-weight:600;color:var(--text4);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;}
+.next-exercises{margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;}
+.next-ex-pill{background:var(--bg3);border-radius:20px;padding:3px 10px;font-size:0.72rem;color:var(--text3);}
+.hero-cta{margin-top:20px;width:100%;padding:14px;background:var(--accent);border:none;border-radius:var(--radius);color:white;font-size:1rem;font-weight:600;cursor:pointer;}
+.hero-cta:active{opacity:0.8;}
+
+/* WORKOUT */
+.workout-body{padding-bottom:20px;}
+.progress-strip{padding:12px 20px 0;display:flex;align-items:center;gap:12px;}
+.progress-track{flex:1;height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;}
+.progress-fill{height:100%;background:var(--accent);border-radius:2px;transition:width 0.4s cubic-bezier(0.4,0,0.2,1);}
+.progress-text{font-size:0.75rem;color:var(--text4);white-space:nowrap;font-weight:500;}
+.day-seg{display:flex;margin:12px 16px 4px;background:var(--bg2);border-radius:10px;padding:2px;}
+.seg-btn{flex:1;padding:7px;border:none;background:transparent;color:var(--text3);font-size:0.85rem;font-weight:600;border-radius:9px;cursor:pointer;transition:all 0.2s;}
+.seg-btn.active{background:var(--bg4);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,0.4);}
+
+.workout-notes-wrap{margin:12px 16px 0;}
+.notes-lbl{font-size:0.72rem;font-weight:600;color:var(--text4);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px;}
+.notes-input{width:100%;min-height:60px;background:var(--bg2);border:1px solid var(--sep);border-radius:var(--radius);padding:12px;color:var(--text);font-family:-apple-system,sans-serif;font-size:0.9rem;resize:vertical;}
+.notes-input:focus{outline:none;border-color:var(--accent);}
+
+/* INLINE EXERCISE BLOCK */
+.ex-block{margin:0 16px 10px;background:var(--bg2);border-radius:var(--radius-lg);padding:14px 16px;transition:all 0.2s;}
+.ex-block.done{background:rgba(48,209,88,0.08);border:1px solid rgba(48,209,88,0.25);}
+.ex-block-top{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.ex-num{width:24px;height:24px;border-radius:50%;background:var(--bg3);color:var(--text3);font-size:0.75rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.ex-block.done .ex-num{background:var(--green);color:white;}
+.ex-block-name{flex:1;font-size:1rem;font-weight:600;letter-spacing:-0.2px;}
+.ex-block.done .ex-block-name{color:var(--green);}
+.ex-block-weight{font-size:0.95rem;font-weight:600;color:var(--orange);margin-right:6px;}
+.ex-block-arrow{color:var(--text4);font-size:0.95rem;cursor:pointer;padding:4px 6px;border-radius:6px;}
+.ex-block-arrow:active{background:var(--bg3);}
+
+/* SET CIRCLES INLINE */
+.sets-circles{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.set-circle{width:42px;height:42px;border-radius:50%;border:2px solid var(--bg4);background:var(--bg3);color:var(--text3);font-size:0.85rem;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s;flex-shrink:0;position:relative;}
+.set-circle:active{transform:scale(0.92);}
+.set-circle.ticked{background:var(--green);border-color:var(--green);color:white;}
+.set-circle.ticked-f{background:var(--red);border-color:var(--red);color:white;}
+.set-circle-lbl{font-size:0.55rem;color:var(--text4);position:absolute;bottom:-14px;left:50%;transform:translateX(-50%);text-transform:uppercase;letter-spacing:0.4px;font-weight:600;}
+.sets-circles-wrap{padding-bottom:18px;}
+
+/* REP COUNTER inline */
+.inline-rep-wrap{display:flex;align-items:center;gap:6px;margin-left:auto;padding:4px 8px;background:var(--bg3);border-radius:20px;}
+.inline-rep-btn{width:22px;height:22px;border-radius:50%;border:none;background:var(--bg4);color:var(--text);font-size:0.85rem;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.inline-rep-btn:active{background:var(--accent);}
+.inline-rep-val{font-size:0.85rem;font-weight:700;color:var(--orange);min-width:18px;text-align:center;}
+.inline-rep-lbl{font-size:0.6rem;color:var(--text4);text-transform:uppercase;letter-spacing:0.4px;font-weight:600;margin-left:2px;}
+
+/* SHEET */
+.sheet-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:200;display:none;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);}
+.sheet-overlay.open{display:block;}
+.sheet{position:fixed;bottom:0;left:0;right:0;background:var(--bg2);border-radius:20px 20px 0 0;max-height:92vh;overflow-y:auto;z-index:201;transform:translateY(100%);transition:transform 0.35s cubic-bezier(0.4,0,0.2,1);padding-bottom:40px;}
+.sheet.open{transform:translateY(0);}
+.sheet-handle{width:36px;height:4px;background:var(--bg4);border-radius:2px;margin:12px auto 8px;}
+.sheet-header{padding:8px 20px 16px;border-bottom:1px solid var(--sep);}
+.sheet-title{font-size:1.1rem;font-weight:700;}
+.sheet-sub{font-size:0.8rem;color:var(--text4);margin-top:2px;}
+.sheet-section{padding:16px 20px 0;}
+.sheet-section-label{font-size:0.72rem;font-weight:600;color:var(--text4);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;}
+
+/* WEIGHT CONTROL */
+.weight-ctrl{margin:16px 20px 0;background:var(--bg3);border-radius:var(--radius);padding:14px 16px;}
+.wc-label{font-size:0.72rem;font-weight:600;color:var(--text4);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;}
+.wc-row{display:flex;align-items:center;gap:10px;}
+.wc-btn{width:44px;height:44px;border-radius:50%;background:var(--bg4);border:none;color:var(--text);font-size:1.4rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.wc-btn:active{background:var(--accent);}
+.wc-display{flex:1;text-align:center;font-size:2rem;font-weight:700;color:var(--orange);letter-spacing:-1px;cursor:pointer;padding:8px;background:rgba(255,255,255,0.04);border-radius:10px;border:1px solid var(--sep);}
+.wc-hint{text-align:center;font-size:0.7rem;color:var(--accent);margin-top:6px;}
+.wc-metrics{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:12px;}
+.wc-metric{background:var(--bg4);border-radius:10px;padding:8px 10px;text-align:center;}
+.wc-metric-val{font-size:0.9rem;font-weight:600;}
+.wc-metric-lbl{font-size:0.65rem;color:var(--text4);margin-top:2px;}
+
+/* BAR ROW */
+.bar-row{margin:10px 20px 0;background:var(--bg3);border-radius:var(--radius);padding:12px 16px;display:flex;align-items:center;cursor:pointer;}
+.bar-row:active{background:var(--bg4);}
+.bar-row-info{flex:1;}
+.bar-row-info div:first-child{font-size:0.85rem;color:var(--text3);}
+.bar-row-info div:last-child{font-size:0.7rem;color:var(--accent);margin-top:2px;}
+.bar-row-val{font-size:0.95rem;font-weight:600;color:var(--text3);margin-right:8px;}
+
+/* PLATES */
+.plate-section{margin:12px 20px 0;background:var(--bg3);border-radius:var(--radius);padding:14px 16px;}
+.plate-viz{display:flex;align-items:center;justify-content:center;gap:2px;margin:10px 0;}
+.p-sleeve{width:32px;height:8px;background:var(--bg4);border-radius:3px;}
+.p-collar{width:7px;height:14px;background:#555;border-radius:2px;}
+.plate{border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:700;color:white;}
+.p45{width:18px;height:40px;background:#2563eb;} .p35{width:16px;height:36px;background:#7c3aed;}
+.p25{width:14px;height:30px;background:#059669;} .p10{width:12px;height:24px;background:#d97706;}
+.p5{width:10px;height:18px;background:#dc2626;} .p25s{width:9px;height:14px;background:#6b7280;}
+.plate-detail{font-size:0.78rem;color:var(--text3);text-align:center;}
+.plate-detail span{color:var(--orange);font-weight:600;}
+
+/* EXERCISE NOTES */
+.ex-notes-wrap{margin:12px 20px 0;}
+.ex-notes-input{width:100%;min-height:55px;background:var(--bg3);border:1px solid var(--sep);border-radius:var(--radius);padding:10px 12px;color:var(--text);font-family:-apple-system,sans-serif;font-size:0.85rem;resize:vertical;}
+.ex-notes-input:focus{outline:none;border-color:var(--accent);}
+
+/* HOW-TO BLOCK */
+.howto-section{margin:16px 20px 0;background:var(--bg3);border-radius:var(--radius);padding:16px;}
+.howto-img{width:100%;height:180px;object-fit:cover;border-radius:10px;background:var(--bg4);margin-bottom:12px;}
+.howto-list{list-style:none;padding:0;margin:0;}
+.howto-list li{font-size:0.85rem;color:var(--text3);padding:5px 0 5px 18px;position:relative;line-height:1.45;}
+.howto-list li::before{content:'•';position:absolute;left:4px;color:var(--accent);font-weight:700;}
+
+/* DONE BTN */
+.sheet-done-btn{margin:16px 20px 0;width:calc(100% - 40px);padding:15px;background:rgba(255,255,255,0.06);border:1px solid var(--sep);border-radius:var(--radius);color:var(--text3);font-size:1rem;font-weight:600;cursor:pointer;letter-spacing:-0.2px;}
+.sheet-done-btn.done{background:var(--green);border-color:var(--green);color:white;font-size:1.05rem;}
+
+.finish-wrap{padding:16px 16px 0;}
+.finish-btn{width:100%;padding:15px;background:var(--green);border:none;border-radius:var(--radius);color:white;font-size:1rem;font-weight:700;cursor:pointer;display:none;}
+.finish-btn.visible{display:block;}
+
+/* DUAL TIMERS */
+.timers-bar{position:fixed;bottom:84px;left:0;right:0;display:flex;align-items:stretch;background:rgba(28,28,30,0.96);border-top:1px solid var(--sep);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);z-index:99;pointer-events:none;opacity:0;transition:opacity 0.3s;}
+.timers-bar.visible{opacity:1;pointer-events:all;}
+.timer-half{flex:1;padding:8px 14px;display:flex;flex-direction:column;justify-content:center;}
+.timer-half:first-child{border-right:1px solid var(--sep);}
+.timer-lbl{font-size:0.6rem;font-weight:600;color:var(--text4);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:2px;}
+.timer-val{font-size:1.5rem;font-weight:700;letter-spacing:-1px;color:var(--orange);}
+.timer-val.goal{color:var(--green);}
+.timer-reset-btn{align-self:center;padding:6px 12px;border:1px solid var(--sep);border-radius:8px;background:transparent;color:var(--text4);font-size:0.72rem;cursor:pointer;margin-right:12px;}
+
+/* PROGRESS TAB */
+.progress-tabs{display:flex;margin:12px 16px 4px;background:var(--bg2);border-radius:10px;padding:2px;}
+.ptab-btn{flex:1;padding:8px;border:none;background:transparent;color:var(--text3);font-size:0.85rem;font-weight:600;border-radius:9px;cursor:pointer;transition:all 0.2s;}
+.ptab-btn.active{background:var(--bg4);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,0.4);}
+
+/* CHART */
+.chart-section{margin:16px 16px 0;background:var(--bg2);border-radius:var(--radius-lg);padding:16px;}
+.chart-title{font-size:1.1rem;font-weight:700;margin-bottom:4px;}
+.chart-sub{font-size:0.75rem;color:var(--text4);margin-bottom:14px;}
+.chart-svg-wrap{width:100%;overflow:hidden;}
+.chart-svg{width:100%;height:auto;display:block;}
+.chart-empty{color:var(--text4);font-size:0.85rem;text-align:center;padding:24px 0;}
+
+.exercise-list-progress{margin:8px 16px 0;background:var(--bg2);border-radius:var(--radius-lg);overflow:hidden;}
+.eprog-row{display:flex;align-items:center;padding:14px 16px;border-bottom:1px solid var(--sep);cursor:pointer;}
+.eprog-row:last-child{border-bottom:none;}
+.eprog-row:active{background:var(--bg3);}
+.eprog-info{flex:1;}
+.eprog-name{font-size:0.95rem;font-weight:500;}
+.eprog-trend{font-size:0.75rem;color:var(--text4);margin-top:2px;}
+.eprog-stat{font-size:0.95rem;font-weight:700;color:var(--orange);margin-right:8px;}
+.eprog-up{color:var(--green);}
+.eprog-down{color:var(--red);}
+
+/* HISTORY */
+.hist-card{margin:0 16px 8px;background:var(--bg2);border-radius:var(--radius-lg);padding:16px;cursor:pointer;}
+.hist-top{display:flex;justify-content:space-between;align-items:flex-start;}
+.hist-day{font-size:1rem;font-weight:700;}
+.hist-date{font-size:0.75rem;color:var(--text4);margin-top:2px;}
+.hist-badge{background:rgba(48,209,88,0.12);border-radius:20px;padding:3px 10px;font-size:0.72rem;color:var(--green);font-weight:600;}
+.hist-detail{margin-top:12px;border-top:1px solid var(--sep);padding-top:12px;display:none;}
+.hist-detail.open{display:block;}
+.hist-ex-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--sep);font-size:0.85rem;}
+.hist-ex-row:last-child{border-bottom:none;}
+.hist-ex-name{color:var(--text);flex:1;}
+.hist-ex-stats{color:var(--orange);font-weight:600;}
+.hist-ex-skip{color:var(--text4);font-style:italic;font-size:0.8rem;}
+.hist-chevron{text-align:center;font-size:0.7rem;color:var(--text4);margin-top:8px;}
+.hist-notes-block{margin-top:10px;padding:10px 12px;background:rgba(255,255,255,0.04);border-radius:10px;border-left:3px solid var(--orange);font-size:0.85rem;color:var(--text3);line-height:1.5;}
+.hist-notes-lbl{font-size:0.65rem;color:var(--text4);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:4px;}
+.hist-ex-notes{font-size:0.75rem;color:var(--text4);font-style:italic;margin-top:2px;}
+.hist-empty{text-align:center;color:var(--text4);font-size:0.9rem;padding:40px 0;}
+
+.settings-body{padding-bottom:20px;}
+
+/* NUMPAD */
+.numpad-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:300;display:none;align-items:flex-end;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);}
+.numpad-overlay.open{display:flex;}
+.numpad{background:#1c1c1e;border-radius:20px 20px 0 0;padding:20px 16px 40px;width:100%;}
+.np-name{font-size:0.8rem;font-weight:600;color:var(--text4);text-transform:uppercase;letter-spacing:0.6px;text-align:center;margin-bottom:4px;}
+.np-display{font-size:3.5rem;font-weight:700;color:var(--orange);text-align:center;letter-spacing:-2px;padding:10px 0 16px;border-bottom:1px solid var(--sep);margin-bottom:16px;}
+.np-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;}
+.np-key{padding:18px;border-radius:12px;border:none;background:var(--bg3);color:var(--text);font-size:1.4rem;font-weight:500;cursor:pointer;}
+.np-key:active{background:var(--bg4);}
+.np-key.del{background:#2a1a1a;color:var(--red);}
+.np-confirm{width:100%;padding:15px;background:var(--accent);border:none;border-radius:var(--radius);color:white;font-size:1rem;font-weight:700;cursor:pointer;}
+
+/* TAB BAR */
+.tab-bar{position:fixed;bottom:0;left:0;right:0;background:rgba(28,28,30,0.92);border-top:1px solid var(--sep);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);display:flex;z-index:100;padding-bottom:env(safe-area-inset-bottom,0px);}
+.tab-btn{flex:1;padding:10px 0 12px;border:none;background:none;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;color:var(--text4);font-size:0.6rem;font-weight:500;transition:color 0.15s;}
+.tab-btn svg{width:22px;height:22px;}
+.tab-btn.active{color:var(--accent);}
+</style>
+</head>
+<body>
+
+<div class="loading-screen" id="loadingScreen"><h1>HIT</h1><p>Loading your data...</p></div>
+<div class="sync-dot" id="syncDot">●</div>
+
+<!-- HOME -->
+<div class="screen active" id="screen-home">
+  <div class="page-header"><h1>HIT</h1><p>Mentzer / Yates Protocol</p></div>
+  <div class="home-body">
+    <div class="hero-card">
+      <div class="next-label">NEXT WORKOUT</div>
+      <div style="font-size:1.3rem;font-weight:700;" id="nextDayLabel">Workout A</div>
+      <div class="next-exercises" id="nextExercises"></div>
+      <button class="hero-cta" onclick="goToWorkout()">Start Workout</button>
+    </div>
+    <div class="section-label">Streak</div>
+    <div class="group">
+      <div class="group-row" style="cursor:default">
+        <div class="row-icon" style="background:rgba(255,69,58,0.15);">🔥</div>
+        <div style="flex:1">
+          <div style="font-size:0.95rem;" id="streakLabel">0 day streak</div>
+          <div style="font-size:0.75rem;color:var(--text4);margin-top:2px;" id="streakSub">Start your first workout</div>
+        </div>
+        <div style="font-size:2rem;font-weight:700;color:var(--red);letter-spacing:-1px;" id="streakNum">0</div>
+      </div>
+    </div>
+    <div class="section-label">Recent</div>
+    <div id="recentHistory"></div>
+  </div>
+</div>
+
+<!-- WORKOUT -->
+<div class="screen" id="screen-workout">
+  <div class="page-header"><h1 id="workoutTitle">Workout A</h1><p id="workoutDate"></p></div>
+  <div class="workout-body">
+    <div class="progress-strip">
+      <div class="progress-track"><div class="progress-fill" id="progressBar" style="width:0%"></div></div>
+      <div class="progress-text" id="progressText">0 / 8</div>
+    </div>
+    <div class="day-seg">
+      <button class="seg-btn" id="segA" onclick="switchTab('a')">Workout A</button>
+      <button class="seg-btn" id="segB" onclick="switchTab('b')">Workout B</button>
+    </div>
+    <div id="exListWrap"></div>
+    <div class="workout-notes-wrap">
+      <div class="notes-lbl">Workout Notes</div>
+      <textarea class="notes-input" id="workoutNotesInput" placeholder="Overall session notes, energy level, etc." oninput="workoutNotes=this.value"></textarea>
+    </div>
+    <div class="finish-wrap">
+      <button class="finish-btn" id="finishBtn" onclick="finishWorkout()">Finish Workout</button>
+    </div>
+  </div>
+</div>
+
+<!-- PROGRESS (combines progress chart + history) -->
+<div class="screen" id="screen-progress">
+  <div class="page-header"><h1 id="progressHeaderTitle">Progress</h1><p id="progressHeaderSub">Track your gains</p></div>
+  <div class="progress-tabs">
+    <button class="ptab-btn active" id="ptab-progress" onclick="switchProgressTab('progress')">Progress</button>
+    <button class="ptab-btn" id="ptab-history" onclick="switchProgressTab('history')">History</button>
+  </div>
+  <div id="progressContent"></div>
+</div>
+
+<!-- SETTINGS -->
+<div class="screen" id="screen-settings">
+  <div class="page-header"><h1>Settings</h1><p>Equipment & preferences</p></div>
+  <div class="settings-body">
+    <div class="section-label">Workout A — Weights</div>
+    <div class="group" id="settingsA"></div>
+    <div class="section-label">Workout B — Weights</div>
+    <div class="group" id="settingsB"></div>
+    <div class="section-label">Data</div>
+    <div class="group">
+      <div class="group-row" onclick="clearHistory()">
+        <div class="row-icon" style="background:rgba(255,69,58,0.15);">🗑️</div>
+        <div class="row-label" style="color:var(--red)">Clear All History</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- EXERCISE SHEET -->
+<div class="sheet-overlay" id="sheetOverlay" onclick="closeSheet()"></div>
+<div class="sheet" id="exSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-header">
+    <div class="sheet-title" id="sheetTitle">Exercise</div>
+    <div class="sheet-sub" id="sheetSub"></div>
+  </div>
+  <div id="sheetContent"></div>
+</div>
+
+<!-- TIMERS -->
+<div class="timers-bar" id="timersBar">
+  <div class="timer-half">
+    <div class="timer-lbl">Rest</div>
+    <div class="timer-val" id="restVal">0:00</div>
+  </div>
+  <div class="timer-half" style="display:flex;align-items:center;justify-content:space-between;">
+    <div>
+      <div class="timer-lbl">Workout</div>
+      <div class="timer-val" id="workoutVal">0:00</div>
+    </div>
+    <button class="timer-reset-btn" onclick="resetRestTimer()">Reset Rest</button>
+  </div>
+</div>
+
+<!-- NUMPAD -->
+<div class="numpad-overlay" id="numpadOverlay" onclick="closeNumpadOutside(event)">
+  <div class="numpad">
+    <div class="np-name" id="npName">Weight</div>
+    <div class="np-display" id="npDisplay">0</div>
+    <div class="np-grid">
+      <button class="np-key" onclick="npK('1')">1</button><button class="np-key" onclick="npK('2')">2</button><button class="np-key" onclick="npK('3')">3</button>
+      <button class="np-key" onclick="npK('4')">4</button><button class="np-key" onclick="npK('5')">5</button><button class="np-key" onclick="npK('6')">6</button>
+      <button class="np-key" onclick="npK('7')">7</button><button class="np-key" onclick="npK('8')">8</button><button class="np-key" onclick="npK('9')">9</button>
+      <button class="np-key" style="color:var(--text4)" onclick="npK('.')">.</button>
+      <button class="np-key" onclick="npK('0')">0</button>
+      <button class="np-key del" onclick="npDel()">⌫</button>
+    </div>
+    <button class="np-confirm" onclick="npConfirm()">Save</button>
+  </div>
+</div>
+
+<!-- TAB BAR -->
+<nav class="tab-bar">
+  <button class="tab-btn active" id="tab-home" onclick="showScreen('home')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Home
+  </button>
+  <button class="tab-btn" id="tab-workout" onclick="showScreen('workout')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 5v14M18 5v14M2 9h4M18 9h4M2 15h4M18 15h4"/></svg>Workout
+  </button>
+  <button class="tab-btn" id="tab-progress" onclick="showScreen('progress')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Progress
+  </button>
+  <button class="tab-btn" id="tab-settings" onclick="showScreen('settings')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>Settings
+  </button>
+</nav>
+
+<script>
+// ── SUPABASE ──────────────────────────────────────────────────
+const SUPABASE_URL='https://hrbdjunsgippbnhebpgg.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhyYmRqdW5zZ2lwcGJuaGVicGdnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4MTM4MzYsImV4cCI6MjA5MzM4OTgzNn0.t_r18B8JNh5p3AaNOw4WvYOUwbCiOjFf9KugF_bAsw8';
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const SINGLETON_ID=1;
+
+// ── EXERCISE DATA ─────────────────────────────────────────────
+const PLATE_SIZES=[45,35,25,10,5,2.5];
+const PLATE_CLS={45:'p45',35:'p35',25:'p25',10:'p10',5:'p5',2.5:'p25s'};
+const REST_GOAL=180;
+
+// HOW-TO data — image URL + bullets
+const HOWTO={
+  'Bench Press':{
+    img:'https://www.muscleandfitness.com/wp-content/uploads/2017/11/1109-bench-press-GettyImages-545642603.jpg',
+    bullets:[
+      'Lie flat, eyes under bar, feet flat on floor',
+      'Grip just outside shoulder width, wrists straight',
+      'Lower bar to lower chest with control (2-3 sec down)',
+      'Press up in slight arc toward your face',
+      'Keep shoulder blades squeezed together'
+    ]
+  },
+  'Overhead Press':{
+    img:'https://media.self.com/photos/626bd16e8c2a4395f6692060/4:3/w_1280,c_limit/Overhead%20Press_TW_011_BC.jpg',
+    bullets:[
+      'Bar at collar bone, grip just outside shoulders',
+      'Brace core tight, squeeze glutes',
+      'Press straight up, push head through at top',
+      'Lower to collar bone with control',
+      "Don't lean back or use legs"
+    ]
+  },
+  'Bent-Over Row':{
+    img:'https://hips.hearstapps.com/hmg-prod/images/bent-over-row-1612965833.jpg',
+    bullets:[
+      'Hinge at hips, back flat, torso ~45°',
+      'Overhand grip, slightly wider than shoulders',
+      'Pull bar to lower chest, lead with elbows',
+      'Squeeze shoulder blades at top',
+      "Don't let back round"
+    ]
+  },
+  'Lat Pulldown':{
+    img:'https://www.bodybuilding.com/images/2020/xdb/originals/xdb-159c-wide-grip-lat-pulldown-m1-section.jpg',
+    bullets:[
+      'Sit with thighs locked under pad, slight lean back',
+      'Wide overhand grip, pull bar to upper chest',
+      'Lead with elbows driving down and back',
+      'Squeeze lats hard at the bottom',
+      'Full stretch at top'
+    ]
+  },
+  'Squat':{
+    img:'https://hips.hearstapps.com/hmg-prod/images/back-squat-1610390624.png',
+    bullets:[
+      'Bar on upper traps, feet shoulder-width, toes slightly out',
+      'Big breath, brace core hard',
+      'Break hips and knees together, chest up',
+      'Descend to thighs parallel or below',
+      'Drive through heels, knees track over toes'
+    ]
+  },
+  'Romanian Deadlift':{
+    img:'https://static.strengthlevel.com/images/exercises/romanian-deadlift/romanian-deadlift-800.jpg',
+    bullets:[
+      'Stand with bar at hips, soft bend in knees',
+      'Hinge at hips, push them back as bar slides down legs',
+      'Keep back flat, feel deep hamstring stretch',
+      'Drive hips forward to stand back up',
+      'Stop before back rounds'
+    ]
+  },
+  'Barbell Curl':{
+    img:'https://hips.hearstapps.com/hmg-prod/images/barbell-curl-1612965806.jpg',
+    bullets:[
+      'Stand with underhand grip, hands shoulder-width',
+      'Elbows pinned to sides — they stay there',
+      'Curl up slowly, squeeze biceps at top',
+      'Lower with control',
+      'No swinging or leaning back'
+    ]
+  },
+  'Standing Calf Raise':{
+    img:'https://hips.hearstapps.com/hmg-prod/images/standing-calf-raise-1612970517.jpg',
+    bullets:[
+      'Balls of feet on platform, heels hanging off',
+      'Lower heels all the way for full stretch (most important)',
+      'Rise on tiptoes, pause and squeeze at top',
+      'Slow and controlled, no bouncing',
+      'Aim for 8-12 reps with 2-sec pauses'
+    ]
+  },
+  'Leg Press':{
+    img:'https://static.strengthlevel.com/images/exercises/machine-leg-press/machine-leg-press-800.jpg',
+    bullets:[
+      'Feet shoulder-width on platform, mid to upper part',
+      'Lower until knees ~90°, don\'t round lower back',
+      'Drive through whole foot, push platform away',
+      "Don't lock knees at top",
+      'Control the negative'
+    ]
+  },
+  'Incline DB Bench':{
+    img:'https://hips.hearstapps.com/hmg-prod/images/incline-dumbbell-bench-press-1612965759.jpg',
+    bullets:[
+      'Bench at 30° incline (not too steep)',
+      'Dumbbells over shoulders, palms forward',
+      'Lower to upper chest with control',
+      'Press up and slightly together at top',
+      'Keep wrists straight, elbows ~45° from torso'
+    ]
+  },
+  'Yates Row':{
+    img:'https://hips.hearstapps.com/hmg-prod/images/yates-row-1612970527.jpg',
+    bullets:[
+      'Underhand grip, slightly wider than shoulders',
+      'Torso ~70° (more upright than bent-over row)',
+      'Pull bar to lower abs, drive elbows back',
+      'Squeeze lats and biceps at top',
+      'Control the negative, full stretch at bottom'
+    ]
+  },
+  'Pull-Up / Pulldown':{
+    img:'https://hips.hearstapps.com/hmg-prod/images/pull-up-1612965869.jpg',
+    bullets:[
+      'Grip slightly wider than shoulders, palms forward',
+      'Hang fully at start, dead hang OK',
+      'Pull chest to bar, leading with elbows',
+      'Pause briefly at top, control descent',
+      'Use lat pulldown if can\'t do bodyweight'
+    ]
+  },
+  'Leg Curl':{
+    img:'https://www.bodybuilding.com/images/2020/xdb/originals/xdb-128c-lying-leg-curl-m1-section.jpg',
+    bullets:[
+      'Pad just above heels (not on calves)',
+      'Curl heels toward glutes, full range',
+      'Squeeze hamstrings hard at the top',
+      'Control the negative — slow lowering',
+      "Don't lift hips off the bench"
+    ]
+  },
+  'Lateral Raise':{
+    img:'https://hips.hearstapps.com/hmg-prod/images/dumbbell-lateral-raise-1612970455.jpg',
+    bullets:[
+      'Stand with dumbbells at sides, slight elbow bend',
+      'Raise out to sides until parallel with floor',
+      'Lead with elbows, not hands',
+      'Pause briefly at top, lower slowly',
+      'Light weight — form over ego'
+    ]
+  },
+  'Face Pull':{
+    img:'https://hips.hearstapps.com/hmg-prod/images/face-pull-1612965845.jpg',
+    bullets:[
+      'Cable at face height, rope attachment',
+      'Pull rope toward face, hands separating',
+      'Elbows high, drive them back',
+      'Squeeze rear delts and upper back',
+      'Slow controlled return'
+    ]
+  },
+  'Seated Calf Raise':{
+    img:'https://www.bodybuilding.com/images/2020/xdb/originals/xdb-185c-seated-calf-raise-m1-section.jpg',
+    bullets:[
+      'Pad on lower thighs just above knees',
+      'Balls of feet on platform, heels hanging',
+      'Drop heels for full stretch',
+      'Rise up on toes, squeeze hard',
+      'Higher reps work best — 10-15'
+    ]
+  },
+};
+
+const DEFAULT_EXERCISES={
+  a:[
+    {id:'a1',num:1,name:'Bench Press',         cat:'Push · Chest',       w:148,inc:5, bar:true, barW:45},
+    {id:'a2',num:2,name:'Overhead Press',      cat:'Push · Shoulders',   w:78, inc:5, bar:true, barW:45},
+    {id:'a3',num:3,name:'Bent-Over Row',       cat:'Pull · Back',        w:120,inc:5, bar:true, barW:45},
+    {id:'a4',num:4,name:'Lat Pulldown',        cat:'Pull · Back',        w:112,inc:5, bar:false,machine:true},
+    {id:'a5',num:5,name:'Squat',               cat:'Legs · Quads',       w:218,inc:5, bar:true, barW:45},
+    {id:'a6',num:6,name:'Romanian Deadlift',   cat:'Legs · Hamstrings',  w:168,inc:5, bar:true, barW:45},
+    {id:'a7',num:7,name:'Barbell Curl',        cat:'Extra · Biceps',     w:64, inc:5, bar:true, barW:15},
+    {id:'a8',num:8,name:'Standing Calf Raise', cat:'Extra · Calves',     w:100,inc:5, bar:false,machine:true},
+  ],
+  b:[
+    {id:'b1',num:1,name:'Leg Press',           cat:'Legs · Quads',       w:336,inc:10,bar:false,machine:true},
+    {id:'b2',num:2,name:'Incline DB Bench',    cat:'Push · Chest',       w:60, inc:5, bar:false,db:true},
+    {id:'b3',num:3,name:'Yates Row',           cat:'Pull · Back',        w:120,inc:5, bar:true, barW:45},
+    {id:'b4',num:4,name:'Pull-Up / Pulldown',  cat:'Pull · Lats',        w:112,inc:5, bar:false,machine:true},
+    {id:'b5',num:5,name:'Leg Curl',            cat:'Legs · Hamstrings',  w:88, inc:5, bar:false,machine:true},
+    {id:'b6',num:6,name:'Lateral Raise',       cat:'Shoulders · Side',   w:20, inc:5, bar:false,db:true},
+    {id:'b7',num:7,name:'Face Pull',           cat:'Shoulders · Rear',   w:50, inc:5, bar:false,machine:true},
+    {id:'b8',num:8,name:'Seated Calf Raise',   cat:'Extra · Calves',     w:90, inc:5, bar:false,machine:true},
+  ]
+};
+
+const ALL_EX=()=>[...DEFAULT_EXERCISES.a,...DEFAULT_EXERCISES.b];
+function findEx(id){return ALL_EX().find(e=>e.id===id);}
+function todayStr(){return new Date().toISOString().slice(0,10);}
+function fmtDate(s){return new Date(s+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});}
+function fmtDateShort(s){return new Date(s+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});}
+function escHtml(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// STATE
+let appData={history:[],next:'a',weights:{},barWeights:{}};
+let saveTimer=null;
+let workoutLog={};
+let workoutNotes='';
+let completed=new Set();
+let activeTab='a';
+let currentSheetId=null;
+let progressActiveTab='progress';
+let zoomedExerciseId=null;
+
+// ── SUPABASE ──────────────────────────────────────────────────
+function setSync(state,msg){const el=document.getElementById('syncDot');el.className='sync-dot '+state;el.textContent=msg||'●';}
+
+async function loadData(){
+  setSync('syncing','syncing...');
+  try{
+    const {data,error}=await sb.from('workouts').select('data').eq('id',SINGLETON_ID).maybeSingle();
+    if(error) throw error;
+    if(data&&data.data){
+      appData=data.data;
+      if(!appData.weights) appData.weights={};
+      if(!appData.barWeights) appData.barWeights={};
+      if(!appData.next) appData.next='a';
+      ALL_EX().forEach(ex=>{
+        if(appData.weights[ex.id]!==undefined) ex.w=appData.weights[ex.id];
+        if(appData.barWeights[ex.id]!==undefined) ex.barW=appData.barWeights[ex.id];
+      });
+    }
+    setSync('synced','✓ synced');
+  }catch(e){
+    console.error('Load:',e); setSync('error','✗ offline');
+    try{const r=localStorage.getItem('hit_local');if(r){appData=JSON.parse(r);ALL_EX().forEach(ex=>{if(appData.weights&&appData.weights[ex.id]!==undefined)ex.w=appData.weights[ex.id];if(appData.barWeights&&appData.barWeights[ex.id]!==undefined)ex.barW=appData.barWeights[ex.id];});}}catch(_){}
+  }
+}
+
+async function saveData(){
+  const weights={},barWeights={};
+  ALL_EX().forEach(ex=>{weights[ex.id]=ex.w;if(ex.bar)barWeights[ex.id]=ex.barW;});
+  appData.weights=weights; appData.barWeights=barWeights;
+  localStorage.setItem('hit_local',JSON.stringify(appData));
+  if(saveTimer) clearTimeout(saveTimer);
+  setSync('syncing','saving...');
+  saveTimer=setTimeout(async()=>{
+    try{const{error}=await sb.from('workouts').upsert({id:SINGLETON_ID,data:appData});if(error)throw error;setSync('synced','✓ saved');}
+    catch(e){console.error(e);setSync('error','✗ local only');}
+  },800);
+}
+
+// ── TIMERS ────────────────────────────────────────────────────
+let restInterval=null,restSecs=0;
+let workoutInterval=null,workoutSecs=0;
+let workoutTimerStarted=false;
+
+function fmt(s){const m=Math.floor(s/60);const sec=s%60;return m+':'+(sec<10?'0':'')+sec;}
+
+function startRestTimer(){
+  restSecs=0;
+  if(restInterval) clearInterval(restInterval);
+  restInterval=setInterval(()=>{
+    restSecs++;
+    const el=document.getElementById('restVal');
+    if(el){el.textContent=fmt(restSecs);el.className='timer-val'+(restSecs>=REST_GOAL?' goal':'');}
+  },1000);
+  showTimers();
+}
+
+function resetRestTimer(){
+  if(restInterval) clearInterval(restInterval);
+  restInterval=null; restSecs=0;
+  const el=document.getElementById('restVal');
+  if(el){el.textContent='0:00';el.className='timer-val';}
+}
+
+function startWorkoutTimer(){
+  if(workoutTimerStarted) return;
+  workoutTimerStarted=true; workoutSecs=0;
+  if(workoutInterval) clearInterval(workoutInterval);
+  workoutInterval=setInterval(()=>{
+    workoutSecs++;
+    const el=document.getElementById('workoutVal');
+    if(el) el.textContent=fmt(workoutSecs);
+  },1000);
+  showTimers();
+}
+
+function stopWorkoutTimer(){if(workoutInterval) clearInterval(workoutInterval);workoutInterval=null;workoutTimerStarted=false;workoutSecs=0;const el=document.getElementById('workoutVal');if(el)el.textContent='0:00';}
+function showTimers(){document.getElementById('timersBar').classList.add('visible');}
+function hideTimers(){document.getElementById('timersBar').classList.remove('visible');resetRestTimer();}
+
+// ── PROGRESSION ───────────────────────────────────────────────
+function calcWeightChange(reps,inc){
+  if(reps>=8) return inc*2;
+  if(reps>=6) return inc;
+  if(reps>=3) return 0;
+  return -inc;
+}
+
+// ── PLATES ────────────────────────────────────────────────────
+function calcPlates(total,barW){
+  const perSide=(total-barW)/2;
+  if(perSide<=0) return {plates:[],perSide:0};
+  let rem=perSide; const plates=[];
+  for(const p of PLATE_SIZES){while(rem>=p-0.01){plates.push(p);rem-=p;}}
+  return {plates,perSide};
+}
+function renderPlates(ex){
+  if(!ex.bar) return '';
+  const bw=ex.barW||45;
+  const {plates,perSide}=calcPlates(ex.w,bw);
+  const L=[...plates].reverse().map(p=>`<div class="plate ${PLATE_CLS[p]}">${p>=25?p:''}</div>`).join('');
+  const R=plates.map(p=>`<div class="plate ${PLATE_CLS[p]}">${p>=25?p:''}</div>`).join('');
+  const str=plates.length>0?plates.map(p=>p+'lb').join(' + ')+' each side':'Bar only ('+bw+'lb)';
+  return `<div class="plate-section">
+    <div class="sheet-section-label">Plates · Bar: ${bw} lb</div>
+    <div class="plate-viz"><div class="p-sleeve"></div><div class="p-collar"></div>${L}<div class="p-collar"></div><div style="width:6px;height:6px;background:var(--bg4);border-radius:50%"></div><div class="p-collar"></div>${R}<div class="p-collar"></div><div class="p-sleeve"></div></div>
+    <div class="plate-detail"><span>${perSide} lb</span> per side · ${str}</div>
+  </div>`;
+}
+
+// ── INLINE WORKOUT VIEW ───────────────────────────────────────
+function buildInlineExBlock(ex){
+  if(!workoutLog[ex.id]) workoutLog[ex.id]={reps:8,completed:false,setCBs:{},exNotes:''};
+  const log=workoutLog[ex.id];
+  const suffix=ex.db?' each':' lb';
+  const isDone=completed.has(ex.id);
+  const cbs=log.setCBs||{};
+
+  const circle=(key,label,isF)=>{
+    const cls=cbs[key]?(isF?'ticked-f':'ticked'):'';
+    return `<div style="position:relative;padding-bottom:14px">
+      <div class="set-circle ${cls}" onclick="event.stopPropagation();toggleSetCircle('${ex.id}','${key}',${isF})">${cbs[key]?'✓':''}</div>
+      <div class="set-circle-lbl">${label}</div>
+    </div>`;
+  };
+
+  const repCounter=`<div class="inline-rep-wrap">
+    <button class="inline-rep-btn" onclick="event.stopPropagation();changeReps('${ex.id}',-1)">−</button>
+    <div class="inline-rep-val" id="inline-reps-${ex.id}">${log.reps}</div>
+    <button class="inline-rep-btn" onclick="event.stopPropagation();changeReps('${ex.id}',1)">+</button>
+    <div class="inline-rep-lbl">reps</div>
+  </div>`;
+
+  return `<div class="ex-block ${isDone?'done':''}" id="exblock_${ex.id}">
+    <div class="ex-block-top">
+      <div class="ex-num">${ex.num}</div>
+      <div class="ex-block-name">${ex.name}</div>
+      <div class="ex-block-weight">${ex.w}${suffix}</div>
+      <div class="ex-block-arrow" onclick="openSheet('${ex.id}')">›</div>
+    </div>
+    <div class="sets-circles-wrap">
+      <div class="sets-circles">
+        ${circle('wu1','WU1',false)}
+        ${circle('wu2','WU2',false)}
+        ${circle('act','ACT',false)}
+        ${circle('wk','WORK',true)}
+        ${repCounter}
+      </div>
+    </div>
+  </div>`;
+}
+
+function buildExList(day){
+  const exs=day==='a'?DEFAULT_EXERCISES.a:DEFAULT_EXERCISES.b;
+  return exs.map(ex=>buildInlineExBlock(ex)).join('');
+}
+
+function toggleSetCircle(exId,key,isF){
+  if(!workoutLog[exId]) workoutLog[exId]={reps:8,completed:false,setCBs:{},exNotes:''};
+  const cbs=workoutLog[exId].setCBs;
+  const wasOn=!!cbs[key];
+  cbs[key]=!wasOn;
+
+  // Update inline circle
+  const wrap=document.querySelector(`#exblock_${exId} .sets-circles`);
+  // Re-render inline block to keep state consistent
+  const ex=findEx(exId);
+  const block=document.getElementById('exblock_'+exId);
+  if(block){
+    const newHTML=buildInlineExBlock(ex);
+    const tmp=document.createElement('div');
+    tmp.innerHTML=newHTML;
+    block.replaceWith(tmp.firstElementChild);
+  }
+
+  // If sheet is open for this exercise, update too
+  if(currentSheetId===exId) renderSheetContent(ex);
+
+  // Auto-complete: if working set is checked, mark exercise complete
+  if(key==='wk'&&!wasOn){
+    if(!completed.has(exId)){
+      completed.add(exId);
+      workoutLog[exId].completed=true;
+      workoutLog[exId].weight=ex.w;
+      const newBlock=document.getElementById('exblock_'+exId);
+      if(newBlock) newBlock.classList.add('done');
+    }
+  } else if(key==='wk'&&wasOn) {
+    // un-checking working set un-completes exercise
+    completed.delete(exId);
+    workoutLog[exId].completed=false;
+    const newBlock=document.getElementById('exblock_'+exId);
+    if(newBlock) newBlock.classList.remove('done');
+  }
+
+  if(!wasOn){
+    startRestTimer();
+    startWorkoutTimer();
+  }
+  updateProgress();
+}
+
+function changeReps(exId,delta){
+  if(!workoutLog[exId]) workoutLog[exId]={reps:8,completed:false,setCBs:{},exNotes:''};
+  workoutLog[exId].reps=Math.max(0,(workoutLog[exId].reps||8)+delta);
+  const inline=document.getElementById('inline-reps-'+exId);
+  if(inline) inline.textContent=workoutLog[exId].reps;
+  const sheetEl=document.getElementById('reps-'+exId);
+  if(sheetEl) sheetEl.textContent=workoutLog[exId].reps;
+}
+
+// ── SHEET (detail view via arrow) ────────────────────────────
+function openSheet(id){
+  const ex=findEx(id); if(!ex)return;
+  currentSheetId=id;
+  document.getElementById('sheetTitle').textContent=ex.name;
+  document.getElementById('sheetSub').textContent=ex.cat;
+  renderSheetContent(ex);
+  document.getElementById('sheetOverlay').classList.add('open');
+  setTimeout(()=>document.getElementById('exSheet').classList.add('open'),10);
+}
+
+function renderSheetContent(ex){
+  if(!workoutLog[ex.id]) workoutLog[ex.id]={reps:8,completed:false,setCBs:{},exNotes:''};
+  const log=workoutLog[ex.id];
+  const suffix=ex.db?' each':' lb';
+  const w50=Math.round(ex.w*0.5/5)*5;
+  const w75=Math.round(ex.w*0.75/5)*5;
+  const isDone=completed.has(ex.id);
+
+  const weightHTML=`<div class="weight-ctrl">
+    <div class="wc-label">Working Weight</div>
+    <div class="wc-row">
+      <button class="wc-btn" onclick="adjWeight('${ex.id}',-1)">−</button>
+      <div class="wc-display" onclick="openNumpad('${ex.id}','${ex.name} Weight',${ex.w},updateExWeight)">${ex.w}${suffix}</div>
+      <button class="wc-btn" onclick="adjWeight('${ex.id}',1)">+</button>
+    </div>
+    <div class="wc-hint">Tap number to enter manually</div>
+    <div class="wc-metrics">
+      <div class="wc-metric"><div class="wc-metric-val">${w50} lb</div><div class="wc-metric-lbl">50% Warm Up</div></div>
+      <div class="wc-metric"><div class="wc-metric-val">${w75} lb</div><div class="wc-metric-lbl">75% Warm Up</div></div>
+      <div class="wc-metric"><div class="wc-metric-val">+${ex.inc} lb</div><div class="wc-metric-lbl">Next Session</div></div>
+    </div>
+  </div>`;
+
+  const barHTML=ex.bar?`<div class="bar-row" onclick="openNumpad('${ex.id}_bar','${ex.name} — Bar Weight',${ex.barW||45},updateBarWeight)">
+    <div class="bar-row-info"><div>Bar Weight</div><div>Tap to change</div></div>
+    <div class="bar-row-val" id="bw_${ex.id}">${ex.barW||45} lb</div>
+    <div style="color:var(--text4)">›</div>
+  </div>`:'';
+
+  const exNotesHTML=`<div class="ex-notes-wrap">
+    <div class="notes-lbl">Exercise Notes</div>
+    <textarea class="ex-notes-input" placeholder="Form cues, how it felt..." oninput="saveExNotes('${ex.id}',this.value)">${escHtml(log.exNotes||'')}</textarea>
+  </div>`;
+
+  // HOW-TO
+  const ht=HOWTO[ex.name];
+  const howtoHTML=ht?`<div class="howto-section">
+    <div class="sheet-section-label" style="margin-bottom:12px">How to Perform</div>
+    <img src="${ht.img}" class="howto-img" alt="${ex.name}" onerror="this.style.display='none'"/>
+    <ul class="howto-list">${ht.bullets.map(b=>`<li>${escHtml(b)}</li>`).join('')}</ul>
+  </div>`:'';
+
+  const doneHTML=`<button class="sheet-done-btn${isDone?' done':''}" onclick="toggleSheetDone('${ex.id}')">
+    ${isDone?'✓ Exercise Complete — Tap to Undo':'Mark Exercise Complete'}
+  </button>`;
+
+  document.getElementById('sheetContent').innerHTML=weightHTML+barHTML+renderPlates(ex)+exNotesHTML+howtoHTML+doneHTML;
+}
+
+function saveExNotes(exId,val){
+  if(!workoutLog[exId]) workoutLog[exId]={reps:8,completed:false,setCBs:{},exNotes:''};
+  workoutLog[exId].exNotes=val;
+}
+
+function adjWeight(id,dir){
+  const ex=findEx(id); if(!ex)return;
+  ex.w=Math.max(0,ex.w+(dir*ex.inc));
+  saveData();
+  if(currentSheetId===id) renderSheetContent(ex);
+  refreshExBlock(id);
+}
+
+function updateExWeight(val){
+  const ex=findEx(numpadTarget); if(!ex)return;
+  ex.w=val; saveData();
+  if(currentSheetId===ex.id) renderSheetContent(ex);
+  refreshExBlock(ex.id);
+}
+
+function updateBarWeight(val){
+  const exId=numpadTarget.replace('_bar','');
+  const ex=findEx(exId); if(!ex||!ex.bar)return;
+  ex.barW=val; saveData();
+  if(currentSheetId===exId) renderSheetContent(ex);
+}
+
+function refreshExBlock(id){
+  const ex=findEx(id);
+  const block=document.getElementById('exblock_'+id);
+  if(!block) return;
+  const newHTML=buildInlineExBlock(ex);
+  const tmp=document.createElement('div');
+  tmp.innerHTML=newHTML;
+  block.replaceWith(tmp.firstElementChild);
+}
+
+function toggleSheetDone(id){
+  if(!workoutLog[id]) workoutLog[id]={reps:8,completed:false,setCBs:{},exNotes:''};
+  if(completed.has(id)){
+    completed.delete(id);
+    workoutLog[id].completed=false;
+  } else {
+    completed.add(id);
+    workoutLog[id].completed=true;
+    workoutLog[id].weight=findEx(id).w;
+    startWorkoutTimer();
+  }
+  const ex=findEx(id);
+  refreshExBlock(id);
+  renderSheetContent(ex);
+  updateProgress();
+}
+
+function closeSheet(){
+  document.getElementById('exSheet').classList.remove('open');
+  document.getElementById('sheetOverlay').classList.remove('open');
+  currentSheetId=null;
+}
+
+// ── SCREENS ───────────────────────────────────────────────────
+function showScreen(name){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('screen-'+name).classList.add('active');
+  document.getElementById('tab-'+name).classList.add('active');
+  if(name==='home') renderHome();
+  if(name==='progress') renderProgressScreen();
+  if(name==='settings') renderSettings();
+  if(name==='workout'){
+    // Always default to next queued workout
+    activeTab=appData.next||'a';
+    renderWorkout();
+  }
+  if(name!=='workout') hideTimers();
+}
+
+function goToWorkout(){showScreen('workout');}
+
+// ── HOME ──────────────────────────────────────────────────────
+function renderHome(){
+  let streak=0;
+  if(appData.history&&appData.history.length>0){
+    const sorted=[...appData.history].sort((a,b)=>b.date.localeCompare(a.date));
+    let check=new Date(todayStr()+'T12:00:00');
+    for(let i=0;i<sorted.length;i++){
+      const wd=new Date(sorted[i].date+'T12:00:00');
+      if(Math.round((check-wd)/86400000)<=1){streak++;check=wd;}else break;
+    }
+  }
+  document.getElementById('streakNum').textContent=streak;
+  document.getElementById('streakLabel').textContent=streak===1?'1 day streak':streak+' day streak';
+  document.getElementById('streakSub').textContent=streak===0?'Start your first workout':streak===1?'Keep it going!':'You\'re on fire 🔥';
+  const next=appData.next||'a';
+  document.getElementById('nextDayLabel').textContent='Workout '+(next==='a'?'A':'B');
+  const exs=next==='a'?DEFAULT_EXERCISES.a:DEFAULT_EXERCISES.b;
+  document.getElementById('nextExercises').innerHTML=exs.map(e=>`<div class="next-ex-pill">${e.name}</div>`).join('');
+  const recent=[...(appData.history||[])].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,3);
+  document.getElementById('recentHistory').innerHTML=recent.length===0
+    ?'<div class="hist-empty" style="padding:20px">No workouts yet</div>'
+    :recent.map((w,i)=>histCard(w,'r'+i)).join('');
+}
+
+// ── HISTORY CARDS ─────────────────────────────────────────────
+function histCard(w,uid){
+  const exs2=w.day==='a'?DEFAULT_EXERCISES.a:DEFAULT_EXERCISES.b;
+  const log=w.log||{};
+  const detailRows=exs2.map(ex=>{
+    const rec=log[ex.id]; const suffix=ex.db?' each':' lb';
+    if(rec&&rec.completed){
+      const noteStr=rec.exNotes?`<div class="hist-ex-notes">${escHtml(rec.exNotes)}</div>`:'';
+      return `<div class="hist-ex-row"><div style="flex:1"><div class="hist-ex-name">${ex.name}</div>${noteStr}</div><div class="hist-ex-stats">${rec.weight||ex.w}${suffix} × ${rec.reps||8}</div></div>`;
+    }
+    return `<div class="hist-ex-row"><div class="hist-ex-name">${ex.name}</div><div class="hist-ex-skip">skipped</div></div>`;
+  }).join('');
+  const notesBlock=w.notes&&w.notes.trim()?`<div class="hist-notes-block"><div class="hist-notes-lbl">Workout Notes</div>${escHtml(w.notes)}</div>`:'';
+  return `<div class="hist-card" onclick="toggleHistDetail('${uid}')">
+    <div class="hist-top"><div><div class="hist-day">Workout ${(w.day||'a').toUpperCase()}</div><div class="hist-date">${fmtDate(w.date)}</div></div><div class="hist-badge">${w.completed}/8</div></div>
+    <div class="hist-detail" id="hd-${uid}">${detailRows}${notesBlock}</div>
+    <div class="hist-chevron">tap for details</div>
+  </div>`;
+}
+function toggleHistDetail(uid){const el=document.getElementById('hd-'+uid);if(el)el.classList.toggle('open');}
+
+// ── PROGRESS SCREEN ──────────────────────────────────────────
+function renderProgressScreen(){
+  const el=document.getElementById('progressContent');
+  if(progressActiveTab==='history'){
+    document.getElementById('progressHeaderTitle').textContent='History';
+    document.getElementById('progressHeaderSub').textContent='All past workouts';
+    const sorted=[...(appData.history||[])].sort((a,b)=>b.date.localeCompare(a.date));
+    el.innerHTML=sorted.length===0
+      ?'<div class="hist-empty">No workouts yet</div>'
+      :sorted.map((w,i)=>histCard(w,'all'+i)).join('');
+  } else {
+    document.getElementById('progressHeaderTitle').textContent='Progress';
+    document.getElementById('progressHeaderSub').textContent='Track your gains';
+    if(zoomedExerciseId) renderExerciseProgress(zoomedExerciseId);
+    else renderProgressOverview();
+  }
+}
+
+function switchProgressTab(t){
+  progressActiveTab=t;
+  document.querySelectorAll('.ptab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('ptab-'+t).classList.add('active');
+  zoomedExerciseId=null;
+  renderProgressScreen();
+}
+
+// Get series of {date, weight, reps} for an exercise
+function getExerciseSeries(exId){
+  const series=[];
+  (appData.history||[]).forEach(w=>{
+    const rec=(w.log||{})[exId];
+    if(rec&&rec.completed) series.push({date:w.date,weight:rec.weight,reps:rec.reps||8});
+  });
+  series.sort((a,b)=>a.date.localeCompare(b.date));
+  return series;
+}
+
+function renderProgressOverview(){
+  const el=document.getElementById('progressContent');
+  if(!appData.history||appData.history.length===0){
+    el.innerHTML='<div class="hist-empty">No workouts yet — start one to see progress</div>';
+    return;
+  }
+
+  // Build top chart: total volume over time (sum of weight*reps across all exercises per session)
+  const sessions=[...(appData.history||[])].sort((a,b)=>a.date.localeCompare(b.date)).map(w=>{
+    let vol=0;
+    Object.values(w.log||{}).forEach(rec=>{if(rec&&rec.completed) vol+=(rec.weight||0)*(rec.reps||0);});
+    return {date:w.date, volume:vol};
+  }).filter(s=>s.volume>0);
+
+  const chartHTML=`<div class="chart-section">
+    <div class="chart-title">Total Workout Volume</div>
+    <div class="chart-sub">Sum of weight × reps each session</div>
+    ${sessions.length>=2?renderChart(sessions.map(s=>({x:s.date,y:s.volume})),'lb'):'<div class="chart-empty">Need at least 2 sessions to chart</div>'}
+  </div>`;
+
+  // Exercise list with trend
+  const allExs=ALL_EX();
+  const exRows=allExs.map(ex=>{
+    const series=getExerciseSeries(ex.id);
+    if(series.length===0) return '';
+    const first=series[0].weight;
+    const last=series[series.length-1].weight;
+    const diff=last-first;
+    const suffix=ex.db?' each':' lb';
+    const trendClass=diff>0?'eprog-up':diff<0?'eprog-down':'';
+    const trendArrow=diff>0?'↑':diff<0?'↓':'→';
+    return `<div class="eprog-row" onclick="zoomExercise('${ex.id}')">
+      <div class="eprog-info">
+        <div class="eprog-name">${ex.name}</div>
+        <div class="eprog-trend">${series.length} sessions · ${trendArrow} ${Math.abs(diff)}lb total</div>
+      </div>
+      <div class="eprog-stat ${trendClass}">${last}${suffix}</div>
+      <div style="color:var(--text4);font-size:0.9rem">›</div>
+    </div>`;
+  }).filter(s=>s).join('');
+
+  el.innerHTML=chartHTML+'<div class="section-label">Exercises</div>'+(exRows?`<div class="exercise-list-progress">${exRows}</div>`:'<div class="hist-empty">No exercise data yet</div>');
+}
+
+function zoomExercise(exId){
+  zoomedExerciseId=exId;
+  renderExerciseProgress(exId);
+}
+
+function renderExerciseProgress(exId){
+  const ex=findEx(exId);
+  const series=getExerciseSeries(exId);
+  const suffix=ex.db?' each':' lb';
+  const el=document.getElementById('progressContent');
+
+  const back=`<div class="hist-card" style="cursor:pointer;background:transparent;padding:12px 16px;margin-bottom:8px" onclick="zoomedExerciseId=null;renderProgressScreen();">
+    <div style="font-size:0.85rem;color:var(--accent)">← Back to all exercises</div>
+  </div>`;
+
+  const chart=series.length>=2
+    ? renderChart(series.map(s=>({x:s.date,y:s.weight})),' '+suffix.trim(),true)
+    : '<div class="chart-empty">Need at least 2 sessions to chart</div>';
+
+  const sessionList=[...series].reverse().map(s=>`<div class="hist-ex-row" style="padding:10px 0">
+    <div style="flex:1"><div style="font-size:0.85rem">${fmtDate(s.date)}</div></div>
+    <div class="hist-ex-stats">${s.weight}${suffix} × ${s.reps}</div>
+  </div>`).join('');
+
+  el.innerHTML=back+`<div class="chart-section">
+    <div class="chart-title">${ex.name}</div>
+    <div class="chart-sub">${series.length} sessions logged</div>
+    ${chart}
+  </div>
+  <div class="section-label">Sessions</div>
+  <div class="group" style="padding:8px 16px">${sessionList||'<div class="hist-empty">No sessions yet</div>'}</div>`;
+}
+
+// SVG line chart
+function renderChart(points,unit,withDots){
+  if(points.length<2) return '<div class="chart-empty">Need more data</div>';
+  const W=320, H=160, P=24;
+  const ys=points.map(p=>p.y);
+  const minY=Math.min(...ys), maxY=Math.max(...ys);
+  const yRange=Math.max(1,maxY-minY);
+  const xStep=(W-P*2)/(points.length-1);
+
+  const coords=points.map((p,i)=>{
+    const x=P+i*xStep;
+    const y=H-P-((p.y-minY)/yRange)*(H-P*2);
+    return {x,y,raw:p};
+  });
+
+  const path=coords.map((c,i)=>(i===0?'M':'L')+c.x.toFixed(1)+','+c.y.toFixed(1)).join(' ');
+  const dots=coords.map(c=>`<circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="4" fill="#0a84ff" stroke="#000" stroke-width="2"/>`).join('');
+  const labels=`<text x="${P}" y="${H-4}" font-size="10" fill="rgba(235,235,245,0.4)">${fmtDateShort(points[0].x)}</text><text x="${W-P}" y="${H-4}" font-size="10" fill="rgba(235,235,245,0.4)" text-anchor="end">${fmtDateShort(points[points.length-1].x)}</text>`;
+  const yLabels=`<text x="4" y="${P+4}" font-size="10" fill="rgba(235,235,245,0.4)">${maxY}${unit}</text><text x="4" y="${H-P+4}" font-size="10" fill="rgba(235,235,245,0.4)">${minY}${unit}</text>`;
+
+  return `<div class="chart-svg-wrap"><svg class="chart-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">
+    <line x1="${P}" y1="${P}" x2="${P}" y2="${H-P}" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+    <line x1="${P}" y1="${H-P}" x2="${W-P}" y2="${H-P}" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+    <path d="${path}" fill="none" stroke="#0a84ff" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+    ${dots}
+    ${labels}
+    ${yLabels}
+  </svg></div>`;
+}
+
+// ── SETTINGS ─────────────────────────────────────────────────
+function renderSettings(){
+  ['a','b'].forEach(day=>{
+    const exs=DEFAULT_EXERCISES[day];
+    document.getElementById('settings'+day.toUpperCase()).innerHTML=exs.map(ex=>{
+      const suffix=ex.db?' each':' lb';
+      const barSub=ex.bar?`<div style="font-size:0.72rem;color:var(--text4);margin-top:2px">Bar: ${ex.barW||45} lb</div>`:'';
+      return `<div class="group-row" onclick="openNumpad('${ex.id}','${ex.name} Weight',${ex.w},updateSettingsWeight)">
+        <div style="flex:1"><div class="row-label">${ex.name}</div>${barSub}</div>
+        <div class="row-value" id="sw_${ex.id}">${ex.w}${suffix}</div>
+        <div class="row-chevron">›</div>
+      </div>${ex.bar?`<div class="group-row" style="background:rgba(255,255,255,0.02)" onclick="openNumpad('${ex.id}_bar','${ex.name} Bar Weight',${ex.barW||45},updateBarWeight)">
+        <div style="flex:1;padding-left:16px;font-size:0.85rem;color:var(--text4)">↳ Bar Weight</div>
+        <div class="row-value">${ex.barW||45} lb</div>
+        <div class="row-chevron">›</div>
+      </div>`:''}`
+    }).join('');
+  });
+}
+
+function updateSettingsWeight(val){
+  const ex=findEx(numpadTarget); if(!ex)return;
+  ex.w=val; saveData();
+  const s=document.getElementById('sw_'+numpadTarget); const suffix=ex.db?' each':' lb';
+  if(s) s.textContent=val+suffix;
+}
+
+function clearHistory(){if(confirm('Clear all workout history?')){appData.history=[];appData.next='a';saveData();renderProgressScreen();}}
+
+// ── WORKOUT ───────────────────────────────────────────────────
+function renderWorkout(){
+  const tabLetter=activeTab==='a'?'A':'B';
+  document.getElementById('workoutDate').textContent=fmtDate(todayStr());
+  document.getElementById('workoutTitle').textContent='Workout '+tabLetter;
+  // sync seg buttons
+  document.getElementById('segA').classList.toggle('active',activeTab==='a');
+  document.getElementById('segB').classList.toggle('active',activeTab==='b');
+  document.getElementById('exListWrap').innerHTML=buildExList(activeTab);
+  const ni=document.getElementById('workoutNotesInput');
+  if(ni) ni.value=workoutNotes;
+  updateProgress();
+  if(workoutTimerStarted) showTimers();
+}
+
+function switchTab(day){
+  activeTab=day;
+  renderWorkout();
+}
+
+function updateProgress(){
+  const exs=activeTab==='a'?DEFAULT_EXERCISES.a:DEFAULT_EXERCISES.b;
+  const count=exs.filter(e=>completed.has(e.id)).length;
+  document.getElementById('progressBar').style.width=(count/8*100)+'%';
+  document.getElementById('progressText').textContent=count+' / 8';
+  document.getElementById('finishBtn').classList.toggle('visible',count>=1);
+}
+
+function finishWorkout(){
+  const exs=activeTab==='a'?DEFAULT_EXERCISES.a:DEFAULT_EXERCISES.b;
+  const count=exs.filter(e=>completed.has(e.id)).length;
+  const sessionLog={};
+  const msgs=[];
+
+  exs.forEach(ex=>{
+    const rec=workoutLog[ex.id];
+    if(rec&&rec.completed){
+      const baseW=rec.weight||ex.w;
+      sessionLog[ex.id]={weight:baseW,reps:rec.reps||8,completed:true,exNotes:rec.exNotes||''};
+      const change=calcWeightChange(rec.reps||8,ex.inc);
+      if(change!==0) ex.w=Math.max(0,Math.round((ex.w+change)*2)/2);
+      if(change>0) msgs.push(`${ex.name} +${change}lb`);
+      else if(change<0) msgs.push(`${ex.name} ${change}lb (deload)`);
+    } else {
+      sessionLog[ex.id]={completed:false};
+    }
+  });
+
+  if(!appData.history) appData.history=[];
+  appData.history.push({date:todayStr(),day:activeTab,completed:count,log:sessionLog,notes:workoutNotes});
+  appData.next=activeTab==='a'?'b':'a';
+  saveData();
+  completed.clear(); workoutLog={}; workoutNotes='';
+  stopWorkoutTimer(); hideTimers();
+  showScreen('home');
+  const summary=msgs.length>0?'\n\n'+msgs.join('\n'):'';
+  setTimeout(()=>alert('Done! '+count+'/8 completed. Next: Workout '+(appData.next==='a'?'A':'B')+summary),300);
+}
+
+// ── NUMPAD ────────────────────────────────────────────────────
+let numpadTarget=null,numpadStr='',numpadCallback=null;
+function openNumpad(id,label,cur,cb){numpadTarget=id;numpadStr=String(cur);numpadCallback=cb;document.getElementById('npName').textContent=label;document.getElementById('npDisplay').textContent=numpadStr;document.getElementById('numpadOverlay').classList.add('open');}
+function closeNumpadOutside(e){if(e.target===document.getElementById('numpadOverlay'))closeNumpad();}
+function closeNumpad(){document.getElementById('numpadOverlay').classList.remove('open');numpadTarget=null;numpadStr='';numpadCallback=null;}
+function npK(k){if(k==='.'&&numpadStr.includes('.'))return;if(numpadStr==='0'&&k!=='.')numpadStr=k;else numpadStr+=k;document.getElementById('npDisplay').textContent=numpadStr||'0';}
+function npDel(){numpadStr=numpadStr.slice(0,-1)||'0';document.getElementById('npDisplay').textContent=numpadStr;}
+function npConfirm(){const v=parseFloat(numpadStr);if(!isNaN(v)&&v>=0&&numpadCallback)numpadCallback(v);closeNumpad();}
+
+// ── INIT ──────────────────────────────────────────────────────
+async function init(){
+  await loadData();
+  activeTab=appData.next||'a';
+  renderHome();
+  document.getElementById('loadingScreen').style.display='none';
+}
+init();
+</script>
+</body>
+</html>
